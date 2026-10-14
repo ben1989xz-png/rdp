@@ -29,6 +29,20 @@ jobs:
 
           Restart-Service -Name TermService -Force
 
+      - name: Grant Permissions to D Drive
+        shell: pwsh
+        run: |
+          # Даем полный доступ к корню диска D: всем пользователям
+          icacls "D:\" /grant "Users:(OI)(CI)(F)"
+          icacls "D:\" /grant "Administrators:(OI)(CI)(F)"
+          icacls "D:\" /grant "Authenticated Users:(OI)(CI)(F)"
+
+          # Создаем удобную папку для загрузок
+          New-Item -ItemType Directory -Path "D:\Downloads" -Force | Out-Null
+          icacls "D:\Downloads" /grant "Users:(OI)(CI)(F)"
+
+          Write-Host "Права на диск D: успешно обновлены."  
+
       - name: Create or Update Static RDP User (robust)
         shell: pwsh
         env:
