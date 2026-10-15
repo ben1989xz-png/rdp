@@ -41,7 +41,87 @@ jobs:
           New-Item -ItemType Directory -Path "D:\Downloads" -Force | Out-Null
           icacls "D:\Downloads" /grant "Users:(OI)(CI)(F)"
 
-          Write-Host "Права на диск D: успешно обновлены."  
+          Write-Host "Права на диск D: успешно обновлены."
+
+      - name: Check MSYS2 presence
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "C:\msys64\mingw64.exe")) {
+            Write-Error "MSYS2 не найден в C:\msys64\"
+            exit 1
+          }
+          Write-Host "MSYS2 найден: C:\msys64\mingw64.exe"
+
+      - name: Pacman first pass
+        shell: pwsh
+        run: |
+          $m = "C:\msys64\mingw64.exe"
+          & $m -no-start -defterm -here -c "pacman -Syu --noconfirm"
+          exit 0
+
+      - name: Pacman second pass (fresh process = restart)
+        shell: pwsh
+        run: |
+          $m = "C:\msys64\mingw64.exe"
+          & $m -no-start -defterm -here -c "pacman -Syu --noconfirm"
+          Write-Host "Второй проход pacman завершён."
+
+      - name: Install all packages
+        shell: pwsh
+        run: |
+          $m = "C:\msys64\mingw64.exe"
+          & $m -no-start -defterm -here -c "pacman -S --needed --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-pkg-config mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-x264 mingw-w64-x86_64-x265 mingw-w64-x86_64-libvpx mingw-w64-x86_64-lame mingw-w64-x86_64-opus make diffutils git zip curl"
+          Write-Host "Все пакеты установлены."
+
+      - name: Clone FFmpeg and apply Bink 2 patch
+        shell: pwsh
+        run: |
+          $m = "C:\msys64\mingw64.exe"
+          & $m -no-start -defterm -here -c "mkdir -p /c/ffmpeg-build && cd /c/ffmpeg-build && git clone --depth 1 --branch n7.1.2 https://git.ffmpeg.org/ffmpeg.git && cd ffmpeg && curl -L -o bink2.patch https://github.com/sharpemu/ffmpeg-core/raw/master/bink2.patch && git apply bink2.patch && ls libavcodec/ | grep -i bink"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Клонирование или патч не удался"
+            exit 1
+          }
+          Write-Host "FFmpeg склонирован и пропатчен."
+
+      - name: Configure FFmpeg (static build)
+        shell: pwsh
+        run: |
+          $m = "C:\msys64\mingw64.exe"
+          $cmd = 'cd /c/ffmpeg-build/ffmpeg && ./configure --prefix=/c/ffmpeg-bink2 --pkg-config-flags="--static" --extra-ldexeflags="-static" --enable-gpl --enable-libx264 --enable-libx265 --enable-libvpx --enable-libmp3lame --enable-libopus --enable-static --disable-shared --disable-doc --disable-debug'
+          & $m -no-start -defterm -here -c $cmd
+          Write-Host "Configure завершён."
+
+      - name: Build FFmpeg
+        shell: pwsh
+        run: |
+          $m = "C:\msys64\mingw64.exe"
+          & $m -no-start -defterm -here -c "cd /c/ffmpeg-build/ffmpeg && make -j4"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Сборка FFmpeg провалилась"
+            exit 1
+          }
+          Write-Host "Сборка FFmpeg завершена."
+
+      - name: Install FFmpeg
+        shell: pwsh
+        run: |
+          $m = "C:\msys64\mingw64.exe"
+          & $m -no-start -defterm -here -c "cd /c/ffmpeg-build/ffmpeg && make install"
+          Write-Host "FFmpeg установлен в C:\ffmpeg-bink2"
+
+      - name: Verify Bink 2 support
+        shell: pwsh
+        run: |
+          $ffmpeg = "C:\ffmpeg-bink2\bin\ffmpeg.exe"
+          if (-not (Test-Path $ffmpeg)) {
+            Write-Error "ffmpeg.exe не найден в C:\ffmpeg-bink2\bin\"
+            exit 1
+          }
+          Write-Host "=== Bink codecs ==="
+          & $ffmpeg -codecs 2>&1 | Select-String "bink"
+          Write-Host "=== Version ==="
+          & $ffmpeg -version | Select-Object -First 1
 
       - name: Create or Update Static RDP User (robust)
         shell: pwsh
