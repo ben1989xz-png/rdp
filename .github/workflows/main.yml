@@ -107,25 +107,28 @@ jobs:
         shell: pwsh
         run: |
           $bash = "C:\msys64\usr\bin\bash.exe"
+          $env:MSYSTEM = "MINGW64"
+          $env:CHERE_INVOKING = "1"
           $cmd = 'cd /c/ffmpeg-build/ffmpeg && ./configure --prefix=/c/ffmpeg-bink2 --pkg-config-flags="--static" --extra-ldexeflags="-static" --enable-gpl --enable-libx264 --enable-libx265 --enable-libvpx --enable-libmp3lame --enable-libopus --enable-static --disable-shared --disable-doc --disable-debug'
           & $bash -lc $cmd
+          & $bash -lc "which gcc && gcc --version | head -1"
+          if ($LASTEXITCODE -ne 0) { Write-Error "configure провалился"; exit 1 }
           Write-Host "Configure завершён."
 
       - name: Build FFmpeg
         shell: pwsh
         run: |
           $bash = "C:\msys64\usr\bin\bash.exe"
+          $env:MSYSTEM = "MINGW64"
           & $bash -lc "cd /c/ffmpeg-build/ffmpeg && make -j4"
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Сборка FFmpeg провалилась"
-            exit 1
-          }
-          Write-Host "Сборка FFmpeg завершена."
+          if ($LASTEXITCODE -ne 0) { Write-Error "make провалился"; exit 1 }
+          Write-Host "Сборка завершена."
 
       - name: Install FFmpeg
         shell: pwsh
         run: |
           $bash = "C:\msys64\usr\bin\bash.exe"
+          $env:MSYSTEM = "MINGW64"
           & $bash -lc "cd /c/ffmpeg-build/ffmpeg && make install"
           Write-Host "FFmpeg установлен в C:\ffmpeg-bink2"
 
