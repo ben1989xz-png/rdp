@@ -70,7 +70,26 @@ jobs:
         shell: pwsh
         run: |
           $bash = "C:\msys64\usr\bin\bash.exe"
-          & $bash -lc "pacman -S --needed --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-pkg-config mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-x264 mingw-w64-x86_64-x265 mingw-w64-x86_64-libvpx mingw-w64-x86_64-lame mingw-w64-x86_64-opus make diffutils git zip curl"
+          & $bash -lc "pacman -Syu --noconfirm"
+          
+      - name: Install FFmpeg dependencies
+        shell: pwsh
+        run: |
+          $bash = "C:\msys64\usr\bin\bash.exe"
+          $packages = "mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-pkg-config mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-x264 mingw-w64-x86_64-x265 mingw-w64-x86_64-libvpx mingw-w64-x86_64-lame mingw-w64-x86_64-opus make diffutils git zip curl"
+
+          Write-Host "=== Установка пакетов ==="
+          & $bash -lc "pacman -S --needed --noconfirm --overwrite '*' --disable-download-timeout $packages"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "=== Первая попытка упала. Пробуем с -Syuu ==="
+            & $bash -lc "pacman -Syuu --noconfirm --overwrite '*' --disable-download-timeout $packages"
+          }
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Установка пакетов провалилась дважды"
+            exit 1
+          }
           Write-Host "Все пакеты установлены."
 
       - name: Clone FFmpeg and apply Bink 2 patch
