@@ -51,7 +51,7 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\winfsp.msi"
           
           Write-Host "Устанавливаем в тихом режиме..."
-          Start-Process msiexec.exe -ArgumentList "/i", "`"$env:TEMP\winfsp.msi`"", "/qn", "/norestart" -Wait
+          Start-Process msiexec.exe -ArgumentList "/i", "`"$env:TEMP\winfsp.msi`"", "/qn", "ADDLOCAL=ALL", "/norestart" -Wait
           
           Remove-Item "$env:TEMP\winfsp.msi"
           Write-Host "✅ WinFsp успешно установлен."
