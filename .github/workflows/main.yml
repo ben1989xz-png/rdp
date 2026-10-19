@@ -43,6 +43,19 @@ jobs:
 
           Write-Host "Права на диск D: успешно обновлены."
 
+      - name: Install WinFsp from GitHub
+        shell: pwsh
+        run: |
+          Write-Host "Скачиваем WinFsp напрямую с GitHub..."
+          $url = "https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi"
+          Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\winfsp.msi"
+          
+          Write-Host "Устанавливаем в тихом режиме..."
+          Start-Process msiexec.exe -ArgumentList "/i", "`"$env:TEMP\winfsp.msi`"", "/qn", "/norestart" -Wait
+          
+          Remove-Item "$env:TEMP\winfsp.msi"
+          Write-Host "✅ WinFsp успешно установлен."
+
       - name: Check MSYS2 presence
         shell: pwsh
         run: |
