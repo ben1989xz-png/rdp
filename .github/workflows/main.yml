@@ -29,6 +29,57 @@ jobs:
 
           Restart-Service -Name TermService -Force
 
+      - name: Install WinFsp (for rclone mount)
+        shell: pwsh
+        run: |
+          Write-Host "Скачиваем WinFsp..."
+          # Используем стабильную версию 2.1
+          Invoke-WebRequest -Uri "https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi" -OutFile "$env:TEMP\winfsp.msi"
+          Write-Host "Устанавливаем WinFsp в тихом режиме..."
+          Start-Process msiexec.exe -ArgumentList "/i", "`"$env:TEMP\winfsp.msi`"", "/qn", "/norestart" -Wait
+          Remove-Item "$env:TEMP\winfsp.msi"
+          Write-Host "✅ WinFsp установлен."
+
+      - name: Download rclone and configure
+        shell: pwsh
+        env:
+          # Передаем секрет через переменную окружения, это безопаснее
+          RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
+        run: |
+          Write-Host "Скачиваем rclone..."
+          Invoke-WebRequest -Uri "https://downloads.rclone.org/rclone-current-windows-amd64.zip" -OutFile "$env:TEMP\rclone.zip"
+          
+          Write-Host "Распаковываем..."
+          Expand-Archive -Path "$env:TEMP\rclone.zip" -DestinationPath "$env:TEMP\rclone_ext" -Force
+          
+          # ИСПРАВЛЕНИЕ: Правильный синтаксис получения пути
+          $rcloneDir = Get-ChildItem -Path "$env:TEMP\rclone_ext" -Directory | Select-Object -First 1
+          New-Item -ItemType Directory -Path "C:\rclone" -Force | Out-Null
+          Copy-Item -Path "$($rcloneDir.FullName)\rclone.exe" -Destination "C:\rclone\rclone.exe"
+          
+          # Сохраняем конфиг из переменной окружения
+          $env:RCLONE_CONFIG_DATA | Out-File -FilePath "C:\rclone\rclone.conf" -Encoding utf8
+          Write-Host "✅ rclone готов и настроен."
+
+      - name: Mount Google Drive to G:
+        shell: pwsh
+        run: |
+          Write-Host "Монтируем Google Drive в диск G:..."
+          
+          # Запускаем rclone в фоне
+          Start-Process -FilePath "C:\rclone\rclone.exe" `
+            -ArgumentList "mount gdrive: G: --config C:\rclone\rclone.conf --vfs-cache-mode full --links --network-mode" `
+            -WindowStyle Hidden
+          
+          Write-Host "Ждем 10 секунд, чтобы диск появился..."
+          Start-Sleep -Seconds 10
+          
+          if (Test-Path "G:\") {
+            Write-Host "✅ Google Drive успешно смонтирован в G:\"
+          } else {
+            Write-Host "⚠ Диск G: пока не появился. Проверьте права."
+          }
+
       - name: Grant Permissions to D Drive
         shell: pwsh
         run: |
