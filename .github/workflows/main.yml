@@ -56,6 +56,27 @@ jobs:
           Remove-Item "$env:TEMP\winfsp.msi"
           Write-Host "✅ WinFsp успешно установлен."
 
+      - name: Download and Setup rclone
+        shell: pwsh
+        env:
+          RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
+        run: |
+          Write-Host "Скачиваем rclone с официального сайта..."
+          Invoke-WebRequest -Uri "https://downloads.rclone.org/rclone-current-windows-amd64.zip" -OutFile "$env:TEMP\rclone.zip"
+
+          Write-Host "Распаковываем..."
+          Expand-Archive -Path "$env:TEMP\rclone.zip" -DestinationPath "$env:TEMP\rclone_ext" -Force
+
+          Write-Host "Копируем rclone.exe в C:\rclone..."
+          $rcloneDir = Get-ChildItem -Path "$env:TEMP\rclone_ext" -Directory | Select-Object -First 1
+          New-Item -ItemType Directory -Path "C:\rclone" -Force | Out-Null
+          Copy-Item -Path (Join-Path $rcloneDir.FullName "rclone.exe") -Destination "C:\rclone\rclone.exe"
+
+          Write-Host "Создаем конфигурационный файл из секретов GitHub..."
+          $env:RCLONE_CONFIG_DATA | Out-File -FilePath "C:\rclone\rclone.conf" -Encoding utf8
+
+          Write-Host "✅ rclone успешно скачан и настроен."
+
       - name: Check MSYS2 presence
         shell: pwsh
         run: |
