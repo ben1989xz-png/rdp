@@ -41,6 +41,8 @@ jobs:
 
       - name: Download rclone and configure
         shell: pwsh
+        env:
+          RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
         run: |
           Write-Host "Скачиваем rclone..."
           Invoke-WebRequest -Uri "https://downloads.rclone.org/rclone-current-windows-amd64.zip" -OutFile "$env:TEMP\rclone.zip"
@@ -51,13 +53,10 @@ jobs:
           # Находим папку с версией и копируем rclone.exe в C:\rclone
           $rcloneDir = Get-ChildItem -Path "$env:TEMP\rclone_ext" -Directory | Select-Object -First 1
           New-Item -ItemType Directory -Path "C:\rclone" -Force | Out-Null
-          Copy-Item -Path "$rcloneDir\FullName\rclone.exe" -Destination "C:\rclone\rclone.exe"
+          Copy-Item -Path "$($rcloneDir.FullName)\rclone.exe" -Destination "C:\rclone\rclone.exe"
           
           # Восстанавливаем конфиг из секрета
-          $config = @"
-          ${{ secrets.RCLONE_CONFIG }}
-          "@
-          $config | Out-File -FilePath "C:\rclone\rclone.conf" -Encoding utf8
+          $env:RCLONE_CONFIG_DATA | Out-File -FilePath "C:\rclone\rclone.conf" -Encoding utf8
           Write-Host "✅ rclone готов."
 
       - name: Mount Google Drive to G:
