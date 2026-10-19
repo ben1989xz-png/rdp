@@ -77,37 +77,27 @@ jobs:
 
           Write-Host "✅ rclone успешно скачан и настроен."
 
-      - name: Mount Google Drive to G:
+      - name: "Mount Google Drive to G"
         shell: pwsh
         run: |
-          Write-Host "Монтируем Google Drive в диск G:..."
+          Write-Host "Монтируем Google Drive..."
           
-          # Запускаем rclone в фоне с сохранением логов
-          $process = Start-Process -FilePath "C:\rclone\rclone.exe" `
-            -ArgumentList "mount gdrive: G: --config C:\rclone\rclone.conf --vfs-cache-mode full --links --network-mode -vv" `
-            -RedirectStandardOutput "C:\rclone\out.log" `
-            -RedirectStandardError "C:\rclone\err.log" `
-            -WindowStyle Hidden -PassThru
+          $process = Start-Process -FilePath "C:\rclone\rclone.exe" -ArgumentList "mount gdrive: G: --config C:\rclone\rclone.conf --vfs-cache-mode full --links --network-mode -vv" -RedirectStandardOutput "C:\rclone\out.log" -RedirectStandardError "C:\rclone\err.log" -WindowStyle Hidden -PassThru
           
-          Write-Host "Ждем 15 секунд для инициализации..."
+          Write-Host "Ждем 15 секунд..."
           Start-Sleep -Seconds 15
           
-          # Проверяем, не упал ли процесс
           if ($process.HasExited) {
-            Write-Host "❌ ОШИБКА: Процесс rclone завершился с кодом $($process.ExitCode)."
-            Write-Host "--- ЛОГ ОШИБОК (err.log) ---"
+            Write-Host "ОШИБКА: Процесс rclone завершился с кодом $($process.ExitCode)."
+            Write-Host "--- ЛОГ ОШИБОК ---"
             if (Test-Path "C:\rclone\err.log") { Get-Content "C:\rclone\err.log" }
-            Write-Host "--- ОБЩИЙ ЛОГ (out.log) ---"
-            if (Test-Path "C:\rclone\out.log") { Get-Content "C:\rclone\out.log" }
             exit 1
           }
           
-          # Проверяем, появился ли диск
           if (Test-Path "G:\") {
-            Write-Host "✅ УСПЕХ: Диск G: успешно появился в системе GitHub Actions!"
+            Write-Host "УСПЕХ: Диск G: успешно смонтирован!"
           } else {
-            Write-Host "⚠ ПРОЦЕСС РАБОТАЕТ, но диск G: не виден в этой сессии."
-            Write-Host "Это нормально для Windows. Диск появится, когда вы подключитесь по RDP."
+            Write-Host "ПРОЦЕСС РАБОТАЕТ, но диск пока не виден (это нормально для GitHub)."
           }
 
       - name: Check MSYS2 presence
