@@ -110,7 +110,7 @@ jobs:
         shell: pwsh
         run: |
           $bash = "C:\msys64\usr\bin\bash.exe"
-          $packages = "mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-pkg-config mingw-w64-x86_64-nasm mingw-w64-x86_64-x264 mingw-w64-x86_64-x265 mingw-w64-x86_64-libvpx mingw-w64-x86_64-lame mingw-w64-x86_64-opus make diffutils git zip curl"
+          $packages = "mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-pkg-config mingw-w64-x86_64-nasm mingw-w64-x86_64-libx264 mingw-w64-x86_64-x265 mingw-w64-x86_64-libvpx mingw-w64-x86_64-lame mingw-w64-x86_64-opus make diffutils git zip curl"
 
           Write-Host "=== Установка пакетов ==="
           & $bash -lc "pacman -S --needed --noconfirm --overwrite '*' --disable-download-timeout $packages"
