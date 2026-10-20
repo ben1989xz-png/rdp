@@ -77,27 +77,35 @@ jobs:
 
           Write-Host "✅ rclone успешно скачан и настроен."
 
-      - name: "Mount Google Drive to G"
+      - name: Setup rclone config for GUI
         shell: pwsh
         run: |
-          Write-Host "Монтируем Google Drive..."
+          Write-Host "Подготавливаем конфиг для RcloneView..."
+          # RcloneView по умолчанию ищет конфиг в папке AppData
+          $appDataRclone = "$env:APPDATA\rclone"
+          New-Item -ItemType Directory -Path $appDataRclone -Force | Out-Null
+          Copy-Item -Path "C:\rclone\rclone.conf" -Destination "$appDataRclone\rclone.conf" -Force
+          Write-Host "✅ Конфиг скопирован в AppData."
+
+      - name: Install RcloneView GUI
+        shell: pwsh
+        run: |
+          Write-Host "Устанавливаем RcloneView через winget (это займет около минуты)..."
+          # Устанавливаем программу в тихом режиме
+          winget install --id RcloneView.RcloneView -e --silent --accept-package-agreements --accept-source-agreements
           
-          $process = Start-Process -FilePath "C:\rclone\rclone.exe" -ArgumentList "mount gdrive: G: --config C:\rclone\rclone.conf --vfs-cache-mode full --links --network-mode -vv" -RedirectStandardOutput "C:\rclone\out.log" -RedirectStandardError "C:\rclone\err.log" -WindowStyle Hidden -PassThru
+          Write-Host "Создаем ярлык на рабочем столе..."
+          # Ищем, куда установилась программа, чтобы сделать ярлык
+          $exePath = (Get-ChildItem -Path "$env:ProgramFiles\RcloneView" -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
           
-          Write-Host "Ждем 15 секунд..."
-          Start-Sleep -Seconds 15
-          
-          if ($process.HasExited) {
-            Write-Host "ОШИБКА: Процесс rclone завершился с кодом $($process.ExitCode)."
-            Write-Host "--- ЛОГ ОШИБОК ---"
-            if (Test-Path "C:\rclone\err.log") { Get-Content "C:\rclone\err.log" }
-            exit 1
-          }
-          
-          if (Test-Path "G:\") {
-            Write-Host "УСПЕХ: Диск G: успешно смонтирован!"
+          if ($exePath) {
+            $WshShell = New-Object -comObject WScript.Shell
+            $Shortcut = $WshShell.CreateShortcut("C:\Users\Public\Desktop\RcloneView.lnk")
+            $Shortcut.TargetPath = $exePath
+            $Shortcut.Save()
+            Write-Host "✅ RcloneView установлен, ярлык создан на рабочем столе."
           } else {
-            Write-Host "ПРОЦЕСС РАБОТАЕТ, но диск пока не виден (это нормально для GitHub)."
+            Write-Host "⚠ Программа установилась, но ярлык не создан (exe не найден по пути)."
           }
 
       - name: Check MSYS2 presence
