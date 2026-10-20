@@ -90,22 +90,46 @@ jobs:
       - name: Install RcloneView GUI
         shell: pwsh
         run: |
-          Write-Host "Устанавливаем RcloneView через winget (это займет около минуты)..."
-          # Устанавливаем программу в тихом режиме
+          Write-Host "Устанавливаем RcloneView через winget..."
           winget install --id RcloneView.RcloneView -e --silent --accept-package-agreements --accept-source-agreements
           
-          Write-Host "Создаем ярлык на рабочем столе..."
-          # Ищем, куда установилась программа, чтобы сделать ярлык
-          $exePath = (Get-ChildItem -Path "$env:ProgramFiles\RcloneView" -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          Write-Host "Ищем ярлык в меню Пуск..."
           
-          if ($exePath) {
-            $WshShell = New-Object -comObject WScript.Shell
-            $Shortcut = $WshShell.CreateShortcut("C:\Users\Public\Desktop\RcloneView.lnk")
-            $Shortcut.TargetPath = $exePath
-            $Shortcut.Save()
-            Write-Host "✅ RcloneView установлен, ярлык создан на рабочем столе."
+          # Ищем ярлык RcloneView в меню Пуск (для всех пользователей и для текущего)
+          $startMenuPaths = @(
+              "$env:ProgramData\Microsoft\Windows\Start Menu\Programs",
+              "$env:APPDATA\Microsoft\Windows\Start Menu\Programs"
+          )
+          
+          $shortcutPath = $null
+          foreach ($path in $startMenuPaths) {
+              if (Test-Path $path) {
+                  $found = Get-ChildItem -Path $path -Filter "*RcloneView*.lnk" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                  if ($found) {
+                      $shortcutPath = $found.FullName
+                      break
+                  }
+              }
+          }
+          
+          if ($shortcutPath) {
+              Write-Host "Ярлык найден: $shortcutPath"
+              # Копируем на общий рабочий стол
+              Copy-Item -Path $shortcutPath -Destination "C:\Users\Public\Desktop\RcloneView.lnk" -Force
+              Write-Host "✅ Ярлык успешно скопирован на рабочий стол."
           } else {
-            Write-Host "⚠ Программа установилась, но ярлык не создан (exe не найден по пути)."
+              Write-Host "⚠ Ярлык не найден в меню Пуск. Попробуем найти exe напрямую..."
+              # Запасной вариант: поиск exe в AppData
+              $exe = Get-ChildItem -Path "$env:LOCALAPPDATA\Programs", "$env:ProgramFiles" -Filter "RcloneView.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($exe) {
+                  $WshShell = New-Object -comObject WScript.Shell
+                  $Shortcut = $WshShell.CreateShortcut("C:\Users\Public\Desktop\RcloneView.lnk")
+                  $Shortcut.TargetPath = $exe.FullName
+                  $Shortcut.Save()
+                  Write-Host "✅ Ярлык создан вручную."
+              } else {
+                  Write-Host "❌ Не удалось найти RcloneView.exe."
+              }
           }
 
       - name: Check MSYS2 presence
