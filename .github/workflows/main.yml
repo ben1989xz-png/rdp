@@ -87,24 +87,14 @@ jobs:
           Copy-Item -Path "C:\rclone\rclone.conf" -Destination "$appDataRclone\rclone.conf" -Force
           Write-Host "✅ Конфиг скопирован в AppData."
 
-      - name: Install RcloneView GUI (Direct Link)
+      - name: Install RcloneView via winget
         shell: pwsh
         run: |
-          Write-Host "Скачиваем официальный установщик RcloneView по прямой ссылке..."
-          $installerUrl = "https://downloads.bdrive.com/rclone_view/builds/setup_rclone_view-1.6.8.exe"
-          $installerPath = "$env:TEMP\RcloneView_Setup.exe"
-          
-          # Скачиваем
-          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
-          
-          Write-Host "Устанавливаем RcloneView в тихом режиме..."
-          # Запускаем установщик без окон и ждем завершения
-          Start-Process -FilePath $installerPath -ArgumentList "/S" -Wait
-          
-          Remove-Item $installerPath -Force
+          Write-Host "Устанавливаем RcloneView через winget (это надежнее)..."
+          winget install --id Bdrive.RcloneView -e --silent --accept-package-agreements --accept-source-agreements
           
           Write-Host "Создаем ярлык на рабочем столе..."
-          # Путь к exe-файлу, который вы нашли
+          # Используем точный путь, который вы нашли
           $exePath = "C:\Program Files\RcloneView\rclone_view.exe"
           
           if (Test-Path $exePath) {
@@ -112,9 +102,10 @@ jobs:
               $Shortcut = $WshShell.CreateShortcut("C:\Users\Public\Desktop\RcloneView.lnk")
               $Shortcut.TargetPath = $exePath
               $Shortcut.Save()
-              Write-Host "✅ RcloneView успешно установлен, ярлык создан на рабочем столе."
+              Write-Host "✅ RcloneView установлен, ярлык создан."
           } else {
-              Write-Host "⚠ Установщик отработал, но exe не найден по пути $exePath. Ищем..."
+              # Запасной поиск на случай, если путь изменился
+              Write-Host "⚠ Ищем exe в других местах..."
               $foundExe = Get-ChildItem -Path "C:\Program Files", "$env:LOCALAPPDATA\Programs" -Filter "rclone_view.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
               if ($foundExe) {
                   $WshShell = New-Object -comObject WScript.Shell
