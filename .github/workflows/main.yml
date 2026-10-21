@@ -87,14 +87,34 @@ jobs:
           Copy-Item -Path "C:\rclone\rclone.conf" -Destination "$appDataRclone\rclone.conf" -Force
           Write-Host "✅ Конфиг скопирован в AppData."
 
-      - name: Install RcloneView via winget
+      - name: Install RcloneView (Direct Link & Silent)
         shell: pwsh
         run: |
-          Write-Host "Устанавливаем RcloneView через winget (это надежнее)..."
-          winget install --id Bdrive.RcloneView -e --silent --accept-package-agreements --accept-source-agreements
+          Write-Host "Скачиваем RcloneView по прямой ссылке..."
+          $installerUrl = "https://downloads.bdrive.com/rclone_view/builds/setup_rclone_view-1.6.8.exe"
+          $installerPath = "$env:TEMP\RcloneView_Setup.exe"
+          
+          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
+          
+          Write-Host "Устанавливаем в тихом режиме (Inno Setup)..."
+          $args = "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-"
+          
+          $process = Start-Process -FilePath $installerPath -ArgumentList $args -PassThru -Wait
+          
+          Remove-Item $installerPath -Force
+          
+          # 🛡️ ПРЕДОХРАНИТЕЛЬ: Если программа запустилась после установки, закрываем её
+          Write-Host "Проверяем, не запустилась ли программа..."
+          $runningApp = Get-Process -Name "rclone_view" -ErrorAction SilentlyContinue
+          if ($runningApp) {
+              Write-Host "⚠ Программа запустилась автоматически. Закрываем её..."
+              $runningApp | Stop-Process -Force
+              Write-Host "✅ Процесс rclone_view.exe остановлен."
+          } else {
+              Write-Host "✅ Программа не запускалась (всё чисто)."
+          }
           
           Write-Host "Создаем ярлык на рабочем столе..."
-          # Используем точный путь, который вы нашли
           $exePath = "C:\Program Files\RcloneView\rclone_view.exe"
           
           if (Test-Path $exePath) {
@@ -102,20 +122,9 @@ jobs:
               $Shortcut = $WshShell.CreateShortcut("C:\Users\Public\Desktop\RcloneView.lnk")
               $Shortcut.TargetPath = $exePath
               $Shortcut.Save()
-              Write-Host "✅ RcloneView установлен, ярлык создан."
+              Write-Host "✅ Ярлык успешно создан на рабочем столе."
           } else {
-              # Запасной поиск на случай, если путь изменился
-              Write-Host "⚠ Ищем exe в других местах..."
-              $foundExe = Get-ChildItem -Path "C:\Program Files", "$env:LOCALAPPDATA\Programs" -Filter "rclone_view.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-              if ($foundExe) {
-                  $WshShell = New-Object -comObject WScript.Shell
-                  $Shortcut = $WshShell.CreateShortcut("C:\Users\Public\Desktop\RcloneView.lnk")
-                  $Shortcut.TargetPath = $foundExe.FullName
-                  $Shortcut.Save()
-                  Write-Host "✅ Ярлык создан (путь: $($foundExe.FullName))."
-              } else {
-                  Write-Host "❌ Не удалось найти rclone_view.exe."
-              }
+              Write-Host "❌ Не удалось найти rclone_view.exe по пути $exePath"
           } 
 
       - name: Check MSYS2 presence
