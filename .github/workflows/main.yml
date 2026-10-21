@@ -79,13 +79,26 @@ jobs:
 
       - name: Setup rclone config for GUI
         shell: pwsh
+        env:
+          RDP_USERNAME: ${{ secrets.RDP_USERNAME }}
         run: |
           Write-Host "Подготавливаем конфиг для RcloneView..."
-          # RcloneView по умолчанию ищет конфиг в папке AppData
-          $appDataRclone = "$env:APPDATA\rclone"
-          New-Item -ItemType Directory -Path $appDataRclone -Force | Out-Null
-          Copy-Item -Path "C:\rclone\rclone.conf" -Destination "$appDataRclone\rclone.conf" -Force
-          Write-Host "✅ Конфиг скопирован в AppData."
+          
+          # Формируем путь точно как на ваших скриншотах (C:\Users\ИМЯ_ПОЛЬЗОВАТЕЛЯ\AppData\Roaming\rclone)
+          $targetDir = "C:\Users\$env:RDP_USERNAME\AppData\Roaming\rclone"
+          $targetFile = "$targetDir\rclone.conf"
+          
+          # Создаем папку (если пользователь еще ни разу не входил в систему, папки AppData могут не существовать)
+          New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+          
+          # Копируем наш конфиг из C:\rclone в папку пользователя
+          Copy-Item -Path "C:\rclone\rclone.conf" -Destination $targetFile -Force
+          
+          # Выдаем вашему пользователю полные права на эту папку, чтобы RcloneView мог сохранять обновленные токены
+          icacls $targetDir /grant "${env:RDP_USERNAME}:(OI)(CI)F" /T | Out-Null
+          
+          Write-Host "✅ Конфиг успешно скопирован по пути: $targetFile"
+          Write-Host "Права доступа для пользователя $env:RDP_USERNAME выданы."
 
       - name: Install RcloneView (Direct Link & Silent)
         shell: pwsh
