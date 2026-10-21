@@ -87,50 +87,45 @@ jobs:
           Copy-Item -Path "C:\rclone\rclone.conf" -Destination "$appDataRclone\rclone.conf" -Force
           Write-Host "✅ Конфиг скопирован в AppData."
 
-      - name: Install RcloneView GUI
+      - name: Install RcloneView GUI (Direct Link)
         shell: pwsh
         run: |
-          Write-Host "Устанавливаем RcloneView через winget..."
-          winget install --id RcloneView.RcloneView -e --silent --accept-package-agreements --accept-source-agreements
+          Write-Host "Скачиваем официальный установщик RcloneView по прямой ссылке..."
+          $installerUrl = "https://downloads.bdrive.com/rclone_view/builds/setup_rclone_view-1.6.8.exe"
+          $installerPath = "$env:TEMP\RcloneView_Setup.exe"
           
-          Write-Host "Ищем ярлык в меню Пуск..."
+          # Скачиваем
+          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
           
-          # Ищем ярлык RcloneView в меню Пуск (для всех пользователей и для текущего)
-          $startMenuPaths = @(
-              "$env:ProgramData\Microsoft\Windows\Start Menu\Programs",
-              "$env:APPDATA\Microsoft\Windows\Start Menu\Programs"
-          )
+          Write-Host "Устанавливаем RcloneView в тихом режиме..."
+          # Запускаем установщик без окон и ждем завершения
+          Start-Process -FilePath $installerPath -ArgumentList "/S" -Wait
           
-          $shortcutPath = $null
-          foreach ($path in $startMenuPaths) {
-              if (Test-Path $path) {
-                  $found = Get-ChildItem -Path $path -Filter "*RcloneView*.lnk" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-                  if ($found) {
-                      $shortcutPath = $found.FullName
-                      break
-                  }
-              }
-          }
+          Remove-Item $installerPath -Force
           
-          if ($shortcutPath) {
-              Write-Host "Ярлык найден: $shortcutPath"
-              # Копируем на общий рабочий стол
-              Copy-Item -Path $shortcutPath -Destination "C:\Users\Public\Desktop\RcloneView.lnk" -Force
-              Write-Host "✅ Ярлык успешно скопирован на рабочий стол."
+          Write-Host "Создаем ярлык на рабочем столе..."
+          # Путь к exe-файлу, который вы нашли
+          $exePath = "C:\Program Files\RcloneView\rclone_view.exe"
+          
+          if (Test-Path $exePath) {
+              $WshShell = New-Object -comObject WScript.Shell
+              $Shortcut = $WshShell.CreateShortcut("C:\Users\Public\Desktop\RcloneView.lnk")
+              $Shortcut.TargetPath = $exePath
+              $Shortcut.Save()
+              Write-Host "✅ RcloneView успешно установлен, ярлык создан на рабочем столе."
           } else {
-              Write-Host "⚠ Ярлык не найден в меню Пуск. Попробуем найти exe напрямую..."
-              # Запасной вариант: поиск exe в AppData
-              $exe = Get-ChildItem -Path "$env:LOCALAPPDATA\Programs", "$env:ProgramFiles" -Filter "RcloneView.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-              if ($exe) {
+              Write-Host "⚠ Установщик отработал, но exe не найден по пути $exePath. Ищем..."
+              $foundExe = Get-ChildItem -Path "C:\Program Files", "$env:LOCALAPPDATA\Programs" -Filter "rclone_view.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($foundExe) {
                   $WshShell = New-Object -comObject WScript.Shell
                   $Shortcut = $WshShell.CreateShortcut("C:\Users\Public\Desktop\RcloneView.lnk")
-                  $Shortcut.TargetPath = $exe.FullName
+                  $Shortcut.TargetPath = $foundExe.FullName
                   $Shortcut.Save()
-                  Write-Host "✅ Ярлык создан вручную."
+                  Write-Host "✅ Ярлык создан (путь: $($foundExe.FullName))."
               } else {
-                  Write-Host "❌ Не удалось найти RcloneView.exe."
+                  Write-Host "❌ Не удалось найти rclone_view.exe."
               }
-          }
+          } 
 
       - name: Check MSYS2 presence
         shell: pwsh
