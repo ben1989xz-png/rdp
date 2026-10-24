@@ -77,28 +77,36 @@ jobs:
 
           Write-Host "✅ rclone успешно скачан и настроен."
 
-      - name: Setup rclone config for GUI
+      - name: Setup rclone config on Login
         shell: pwsh
+        env:
+          RDP_USERNAME: ${{ secrets.RDP_USERNAME }}
         run: |
-          Write-Host "Подготавливаем конфиг для RcloneView..."
+          Write-Host "Создаем скрипт, который скопирует конфиг при входе..."
           
-          # Ищем имя пользователя. Если скрипт не знает его, берем имя по умолчанию
-          $username = "${{ secrets.RDP_USERNAME }}"
-          if (-not $username) { $username = "runneradmin" }
-          
-          $targetDir = "C:\Users\$username\AppData\Roaming\rclone"
-          
-          Write-Host "Создаем папку: $targetDir"
-          New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-          
-          Write-Host "Копируем конфиг из C:\rclone..."
+          # Создаем PS1 скрипт (используем одинарные кавычки, чтобы переменные не сломались)
+          $scriptContent = @'
+          Start-Sleep -Seconds 5
+          $targetDir = "$env:APPDATA\rclone"
+          if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Path $targetDir -Force | Out-Null }
           Copy-Item -Path "C:\rclone\rclone.conf" -Destination "$targetDir\rclone.conf" -Force
+          '@
           
-          Write-Host "Выдаем права группе Users..."
-          # Вместо имени пользователя используем группу "Users", которая есть всегда
-          icacls $targetDir /grant "Users:(OI)(CI)F" /T | Out-Null
+          $scriptContent | Out-File -FilePath "C:\rclone\copy_config.ps1" -Encoding utf8
           
-          Write-Host "✅ Конфиг успешно скопирован и права выданы."
+          Write-Host "Регистрируем задачу в Планировщике Windows..."
+          # Действие: запустить наш скрипт скрытно
+          $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File C:\rclone\copy_config.ps1"
+          
+          # Триггер: при входе конкретного пользователя
+          $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:RDP_USERNAME"
+          
+          # Запускать от имени пользователя, который вошел
+          $principal = New-ScheduledTaskPrincipal -UserId "$env:RDP_USERNAME" -LogonType InteractiveToken
+          
+          Register-ScheduledTask -TaskName "CopyRcloneConfig" -Action $action -Trigger $trigger -Principal $principal -Force
+          
+          Write-Host "✅ Задача создана. Конфиг скопируется автоматически при входе."
 
       - name: Install RcloneView (Direct Link & Silent)
         shell: pwsh
