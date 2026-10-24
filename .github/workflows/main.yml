@@ -77,37 +77,6 @@ jobs:
 
           Write-Host "✅ rclone успешно скачан и настроен."
 
-      - name: Setup rclone config on Login
-        shell: pwsh
-        env:
-          RDP_USERNAME: ${{ secrets.RDP_USERNAME }}
-        run: |
-          Write-Host "Создаем скрипт, который скопирует конфиг при входе..."
-          
-          # Создаем PS1 скрипт (используем одинарные кавычки, чтобы переменные не сломались)
-          $scriptContent = @'
-          Start-Sleep -Seconds 5
-          $targetDir = "$env:APPDATA\rclone"
-          if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Path $targetDir -Force | Out-Null }
-          Copy-Item -Path "C:\rclone\rclone.conf" -Destination "$targetDir\rclone.conf" -Force
-          '@
-          
-          $scriptContent | Out-File -FilePath "C:\rclone\copy_config.ps1" -Encoding utf8
-          
-          Write-Host "Регистрируем задачу в Планировщике Windows..."
-          # Действие: запустить наш скрипт скрытно
-          $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File C:\rclone\copy_config.ps1"
-          
-          # Триггер: при входе конкретного пользователя
-          $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:RDP_USERNAME"
-          
-          # Запускать от имени пользователя, который вошел
-          $principal = New-ScheduledTaskPrincipal -UserId "$env:RDP_USERNAME" -LogonType Interactive
-          
-          Register-ScheduledTask -TaskName "CopyRcloneConfig" -Action $action -Trigger $trigger -Principal $principal -Force
-          
-          Write-Host "✅ Задача создана. Конфиг скопируется автоматически при входе."
-
       - name: Install RcloneView (Direct Link & Silent)
         shell: pwsh
         run: |
@@ -325,6 +294,37 @@ jobs:
           # Password printed later — if from a GitHub Secret it will usually be masked in logs
           echo "RDP_USERNAME=$username" >> $env:GITHUB_ENV
           echo "RDP_PASSWORD=$password" >> $env:GITHUB_ENV
+
+      - name: Setup rclone config on Login
+        shell: pwsh
+        env:
+          RDP_USERNAME: ${{ secrets.RDP_USERNAME }}
+        run: |
+          Write-Host "Создаем скрипт, который скопирует конфиг при входе..."
+          
+          # Создаем PS1 скрипт (используем одинарные кавычки, чтобы переменные не сломались)
+          $scriptContent = @'
+          Start-Sleep -Seconds 5
+          $targetDir = "$env:APPDATA\rclone"
+          if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Path $targetDir -Force | Out-Null }
+          Copy-Item -Path "C:\rclone\rclone.conf" -Destination "$targetDir\rclone.conf" -Force
+          '@
+          
+          $scriptContent | Out-File -FilePath "C:\rclone\copy_config.ps1" -Encoding utf8
+          
+          Write-Host "Регистрируем задачу в Планировщике Windows..."
+          # Действие: запустить наш скрипт скрытно
+          $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File C:\rclone\copy_config.ps1"
+          
+          # Триггер: при входе конкретного пользователя
+          $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:RDP_USERNAME"
+          
+          # Запускать от имени пользователя, который вошел
+          $principal = New-ScheduledTaskPrincipal -UserId "$env:RDP_USERNAME" -LogonType Interactive
+          
+          Register-ScheduledTask -TaskName "CopyRcloneConfig" -Action $action -Trigger $trigger -Principal $principal -Force
+          
+          Write-Host "✅ Задача создана. Конфиг скопируется автоматически при входе."
 
       - name: Install Tailscale
         shell: pwsh
