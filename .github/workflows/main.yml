@@ -102,7 +102,7 @@ jobs:
           $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:RDP_USERNAME"
           
           # Запускать от имени пользователя, который вошел
-          $principal = New-ScheduledTaskPrincipal -UserId "$env:RDP_USERNAME" -LogonType InteractiveToken
+          $principal = New-ScheduledTaskPrincipal -UserId "$env:RDP_USERNAME" -LogonType Interactive
           
           Register-ScheduledTask -TaskName "CopyRcloneConfig" -Action $action -Trigger $trigger -Principal $principal -Force
           
